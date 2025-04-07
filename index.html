@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Photo Booth Gen Z</title>
+  <!-- Google Fonts untuk tampilan modern -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Font Awesome untuk ikon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" 
+    integrity="sha512-Fo3rlrZj/k7ujTTXRN8I+2NnE8gYlYJ6s8FjZ8t1oBn7b9nIYv1gSbZL8T2OCSPbE5ZtQXuV4+8hEvH8C8Evw==" 
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    /* Reset & dasar font */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Roboto', sans-serif;
+      background: linear-gradient(135deg, #f9f9f9, #e0e0e0);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 20px 0;
+      background: #333;
+      color: #fff;
+      margin-bottom: 20px;
+      border-radius: 5px;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .video-box, .preview-box {
+      position: relative;
+      background: #000;
+      border-bottom: 1px solid #eee;
+    }
+    video, canvas, img {
+      width: 100%;
+      display: block;
+      border-radius: 10px 10px 0 0;
+    }
+    .controls {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      background: #fafafa;
+      padding: 15px;
+      flex-wrap: wrap;
+    }
+    .controls button, .controls a {
+      background: #007BFF;
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      margin: 5px;
+      font-size: 16px;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .controls button:hover, .controls a:hover {
+      background: #0056b3;
+      transform: scale(1.05);
+    }
+    .filter-options {
+      display: flex;
+      justify-content: center;
+      padding: 10px;
+      flex-wrap: wrap;
+      background: #f2f2f2;
+    }
+    .filter-option {
+      margin: 5px;
+      padding: 8px 12px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: background 0.3s, color 0.3s;
+      font-size: 14px;
+    }
+    .filter-option.active,
+    .filter-option:hover {
+      background: #007BFF;
+      color: #fff;
+      border-color: #007BFF;
+    }
+    .preview-box {
+      display: none;
+      padding: 10px;
+      background: #fff;
+    }
+    .preview-box img {
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Photo Booth Gen Z</h1>
+  </header>
+  <div class="container">
+    <!-- Tampilan video live -->
+    <div class="video-box">
+      <video id="video" autoplay playsinline></video>
+    </div>
+    <!-- Pilihan filter -->
+    <div class="filter-options" id="filterOptions">
+      <div class="filter-option active" data-filter="none">Normal</div>
+      <div class="filter-option" data-filter="grayscale(100%)">Grayscale</div>
+      <div class="filter-option" data-filter="sepia(100%)">Sepia</div>
+      <div class="filter-option" data-filter="invert(100%)">Invert</div>
+      <div class="filter-option" data-filter="contrast(150%)">Contrast</div>
+      <div class="filter-option" data-filter="hue-rotate(90deg)">Hue Rotate</div>
+      <div class="filter-option" data-filter="saturate(200%)">Saturate</div>
+    </div>
+    <!-- Kontrol foto -->
+    <div class="controls">
+      <button id="captureBtn"><i class="fas fa-camera"></i> Ambil Foto</button>
+      <button id="resetBtn"><i class="fas fa-sync-alt"></i> Ulangi</button>
+      <a id="downloadLink" href="#" download="photo.png"><i class="fas fa-download"></i> Download</a>
+    </div>
+    <!-- Tampilan preview foto hasil capture -->
+    <div class="preview-box" id="previewBox">
+      <img id="capturedImage" src="" alt="Hasil Foto">
+    </div>
+  </div>
+
+  <script>
+    // Inisialisasi elemen
+    const video = document.getElementById('video');
+    const captureBtn = document.getElementById('captureBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const downloadLink = document.getElementById('downloadLink');
+    const previewBox = document.getElementById('previewBox');
+    const capturedImage = document.getElementById('capturedImage');
+    const filterOptions = document.getElementById('filterOptions');
+    let currentFilter = 'none';
+
+    // Akses webcam
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        video.play();
+      })
+      .catch(err => {
+        console.error("Gagal mengakses webcam:", err);
+        alert("Tidak dapat mengakses webcam. Periksa izin akses kamera.");
+      });
+    } else {
+      alert("Browser tidak mendukung fitur webcam.");
+    }
+
+    // Pilih filter secara interaktif
+    filterOptions.addEventListener('click', (e) => {
+      if(e.target.classList.contains('filter-option')) {
+        document.querySelectorAll('.filter-option').forEach(opt => {
+          opt.classList.remove('active');
+        });
+        e.target.classList.add('active');
+        currentFilter = e.target.getAttribute('data-filter');
+        video.style.filter = currentFilter;
+      }
+    });
+
+    // Fungsi capture foto
+    captureBtn.addEventListener('click', () => {
+      // Buat elemen canvas untuk menangkap frame
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext('2d');
+      context.filter = currentFilter;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Konversi canvas ke data URL
+      const dataURL = canvas.toDataURL('image/png');
+
+      // Tampilkan hasil capture pada preview box
+      capturedImage.src = dataURL;
+      previewBox.style.display = 'block';
+
+      // Update link download dengan foto yang baru
+      downloadLink.href = dataURL;
+    });
+
+    // Fungsi reset untuk menghapus preview dan kembali ke live video
+    resetBtn.addEventListener('click', () => {
+      capturedImage.src = "";
+      previewBox.style.display = 'none';
+      // Reset link download
+      downloadLink.href = "#";
+    });
+  </script>
+</body>
+</html>

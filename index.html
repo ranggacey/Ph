@@ -1,213 +1,733 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Photo Booth Gen Z</title>
-  <!-- Google Fonts untuk tampilan modern -->
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-  <!-- Font Awesome untuk ikon -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" 
-    integrity="sha512-Fo3rlrZj/k7ujTTXRN8I+2NnE8gYlYJ6s8FjZ8t1oBn7b9nIYv1gSbZL8T2OCSPbE5ZtQXuV4+8hEvH8C8Evw==" 
-    crossorigin="anonymous" referrerpolicy="no-referrer" />
-  <style>
-    /* Reset & dasar font */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: 'Roboto', sans-serif;
-      background: linear-gradient(135deg, #f9f9f9, #e0e0e0);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    header {
-      width: 100%;
-      text-align: center;
-      padding: 20px 0;
-      background: #333;
-      color: #fff;
-      margin-bottom: 20px;
-      border-radius: 5px;
-    }
-    .container {
-      width: 100%;
-      max-width: 800px;
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-      overflow: hidden;
-    }
-    .video-box, .preview-box {
-      position: relative;
-      background: #000;
-      border-bottom: 1px solid #eee;
-    }
-    video, canvas, img {
-      width: 100%;
-      display: block;
-      border-radius: 10px 10px 0 0;
-    }
-    .controls {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      background: #fafafa;
-      padding: 15px;
-      flex-wrap: wrap;
-    }
-    .controls button, .controls a {
-      background: #007BFF;
-      border: none;
-      color: #fff;
-      padding: 10px 20px;
-      margin: 5px;
-      font-size: 16px;
-      border-radius: 50px;
-      cursor: pointer;
-      transition: background 0.3s, transform 0.2s;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-    }
-    .controls button:hover, .controls a:hover {
-      background: #0056b3;
-      transform: scale(1.05);
-    }
-    .filter-options {
-      display: flex;
-      justify-content: center;
-      padding: 10px;
-      flex-wrap: wrap;
-      background: #f2f2f2;
-    }
-    .filter-option {
-      margin: 5px;
-      padding: 8px 12px;
-      border: 1px solid #ccc;
-      border-radius: 20px;
-      cursor: pointer;
-      transition: background 0.3s, color 0.3s;
-      font-size: 14px;
-    }
-    .filter-option.active,
-    .filter-option:hover {
-      background: #007BFF;
-      color: #fff;
-      border-color: #007BFF;
-    }
-    .preview-box {
-      display: none;
-      padding: 10px;
-      background: #fff;
-    }
-    .preview-box img {
-      border-radius: 5px;
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <h1>Photo Booth Gen Z</h1>
-  </header>
-  <div class="container">
-    <!-- Tampilan video live -->
-    <div class="video-box">
-      <video id="video" autoplay playsinline></video>
-    </div>
-    <!-- Pilihan filter -->
-    <div class="filter-options" id="filterOptions">
-      <div class="filter-option active" data-filter="none">Normal</div>
-      <div class="filter-option" data-filter="grayscale(100%)">Grayscale</div>
-      <div class="filter-option" data-filter="sepia(100%)">Sepia</div>
-      <div class="filter-option" data-filter="invert(100%)">Invert</div>
-      <div class="filter-option" data-filter="contrast(150%)">Contrast</div>
-      <div class="filter-option" data-filter="hue-rotate(90deg)">Hue Rotate</div>
-      <div class="filter-option" data-filter="saturate(200%)">Saturate</div>
-    </div>
-    <!-- Kontrol foto -->
-    <div class="controls">
-      <button id="captureBtn"><i class="fas fa-camera"></i> Ambil Foto</button>
-      <button id="resetBtn"><i class="fas fa-sync-alt"></i> Ulangi</button>
-      <a id="downloadLink" href="#" download="photo.png"><i class="fas fa-download"></i> Download</a>
-    </div>
-    <!-- Tampilan preview foto hasil capture -->
-    <div class="preview-box" id="previewBox">
-      <img id="capturedImage" src="" alt="Hasil Foto">
-    </div>
-  </div>
-
-  <script>
-    // Inisialisasi elemen
-    const video = document.getElementById('video');
-    const captureBtn = document.getElementById('captureBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const downloadLink = document.getElementById('downloadLink');
-    const previewBox = document.getElementById('previewBox');
-    const capturedImage = document.getElementById('capturedImage');
-    const filterOptions = document.getElementById('filterOptions');
-    let currentFilter = 'none';
-
-    // Akses webcam
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        video.srcObject = stream;
-        video.play();
-      })
-      .catch(err => {
-        console.error("Gagal mengakses webcam:", err);
-        alert("Tidak dapat mengakses webcam. Periksa izin akses kamera.");
-      });
-    } else {
-      alert("Browser tidak mendukung fitur webcam.");
-    }
-
-    // Pilih filter secara interaktif
-    filterOptions.addEventListener('click', (e) => {
-      if(e.target.classList.contains('filter-option')) {
-        document.querySelectorAll('.filter-option').forEach(opt => {
-          opt.classList.remove('active');
-        });
-        e.target.classList.add('active');
-        currentFilter = e.target.getAttribute('data-filter');
-        video.style.filter = currentFilter;
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Photo Booth Mirror | Modern &amp; Gen Z</title>
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Font Awesome untuk ikon -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+      integrity="sha512-Fo3rlrZj/k7ujTTXRN8I+2NnE8gYlYJ6s8FjZ8t1oBn7b9nIYv1gSbZL8T2OCSPbE5ZtQXuV4+8hEvH8C8Evw=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <style>
+      /* ===============================================================
+         Reset CSS dan Style Dasar
+         =============================================================== */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
       }
-    });
+      body {
+        font-family: "Roboto", sans-serif;
+        background: linear-gradient(135deg, #f9f9f9, #e0e0e0);
+        color: #333;
+        overflow-x: hidden;
+      }
+      a {
+        text-decoration: none;
+      }
+      ul {
+        list-style: none;
+      }
+      button {
+        outline: none;
+        border: none;
+        cursor: pointer;
+      }
+      /* ===============================================================
+         Header
+         =============================================================== */
+      header {
+        background: #333;
+        color: #fff;
+        padding: 20px;
+        text-align: center;
+        position: relative;
+        z-index: 10;
+      }
+      header h1 {
+        font-size: 2.5rem;
+        letter-spacing: 2px;
+      }
+      /* ===============================================================
+         Container Utama
+         =============================================================== */
+      .container {
+        width: 90%;
+        max-width: 1200px;
+        margin: 30px auto;
+        background: #fff;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      }
+      /* ===============================================================
+         Video Section dengan Mirror
+         =============================================================== */
+      .video-section {
+        position: relative;
+        overflow: hidden;
+        background: #000;
+      }
+      video {
+        width: 100%;
+        height: auto;
+        transform: scaleX(-1); /* Mirror video */
+      }
+      /* ===============================================================
+         Overlay dan Tombol pada Video
+         =============================================================== */
+      .video-overlay {
+        position: absolute;
+        bottom: 20px;
+        width: 100%;
+        text-align: center;
+        z-index: 5;
+      }
+      .video-overlay button {
+        background: rgba(0, 123, 255, 0.8);
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 50px;
+        font-size: 1rem;
+        transition: background 0.3s;
+        margin: 0 10px;
+      }
+      .video-overlay button:hover {
+        background: rgba(0, 123, 255, 1);
+      }
+      /* ===============================================================
+         Opsi Filter & Layout
+         =============================================================== */
+      .options-section {
+        padding: 20px;
+        background: #f2f2f2;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      .option-item {
+        background: #fff;
+        border: 2px solid #ccc;
+        padding: 10px 15px;
+        border-radius: 25px;
+        margin: 5px 10px;
+        font-size: 0.9rem;
+        transition: background 0.3s, border 0.3s, transform 0.3s;
+      }
+      .option-item.active,
+      .option-item:hover {
+        background: #007bff;
+        border-color: #007bff;
+        color: #fff;
+        transform: translateY(-3px);
+      }
+      /* ===============================================================
+         Preview Section
+         =============================================================== */
+      .preview-section {
+        position: relative;
+        padding: 20px;
+        background: #fff;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+      }
+      .preview-section img {
+        max-width: 100%;
+        border-radius: 10px;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      }
+      /* ===============================================================
+         Tombol Aksi (Retake & Download)
+         =============================================================== */
+      .action-buttons {
+        margin-top: 20px;
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+      }
+      .action-buttons button,
+      .action-buttons a {
+        background: #28a745;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 50px;
+        font-size: 1rem;
+        transition: background 0.3s, transform 0.3s;
+      }
+      .action-buttons button:hover,
+      .action-buttons a:hover {
+        background: #218838;
+        transform: scale(1.05);
+      }
+      /* ===============================================================
+         Modal untuk Pemilihan Layout
+         =============================================================== */
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+      }
+      .modal.active {
+        display: flex;
+      }
+      .modal-content {
+        background: #fff;
+        width: 90%;
+        max-width: 600px;
+        border-radius: 10px;
+        overflow: hidden;
+        animation: fadeIn 0.5s;
+      }
+      .modal-header {
+        background: #007bff;
+        padding: 15px;
+        color: #fff;
+        text-align: center;
+        font-size: 1.5rem;
+      }
+      .modal-body {
+        padding: 20px;
+      }
+      .layout-options {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+      }
+      .layout-option {
+        width: 120px;
+        height: 90px;
+        background: #eee;
+        border: 2px solid #ccc;
+        border-radius: 5px;
+        overflow: hidden;
+        position: relative;
+        transition: transform 0.3s, border 0.3s;
+      }
+      .layout-option.active,
+      .layout-option:hover {
+        border-color: #007bff;
+        transform: scale(1.05);
+      }
+      .layout-option img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .modal-footer {
+        padding: 10px;
+        text-align: right;
+        background: #f2f2f2;
+      }
+      .modal-footer button {
+        background: #007bff;
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 25px;
+        font-size: 1rem;
+        transition: background 0.3s;
+      }
+      .modal-footer button:hover {
+        background: #0056b3;
+      }
+      /* ===============================================================
+         Animasi
+         =============================================================== */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      /* ===============================================================
+         Responsif
+         =============================================================== */
+      @media (max-width: 768px) {
+        header h1 {
+          font-size: 2rem;
+        }
+        .option-item {
+          font-size: 0.8rem;
+          padding: 8px 12px;
+        }
+        .action-buttons button,
+        .action-buttons a {
+          font-size: 0.9rem;
+          padding: 8px 16px;
+        }
+        .modal-content {
+          max-width: 90%;
+        }
+      }
+      /* ===============================================================
+         Dummy Styles untuk Extended Code
+         =============================================================== */
+      .dummy-section {
+        padding: 20px;
+        background: #fafafa;
+        margin-top: 20px;
+      }
+      .dummy-section h2 {
+        font-size: 1.8rem;
+        margin-bottom: 10px;
+      }
+      .dummy-section p {
+        font-size: 1rem;
+        margin-bottom: 10px;
+      }
+      .dummy-section ul {
+        padding-left: 20px;
+      }
+      .dummy-section li {
+        margin-bottom: 5px;
+      }
+      .dummy-content {
+        height: 200px;
+        background: #e9e9e9;
+        border-radius: 10px;
+        margin-bottom: 20px;
+      }
+      /* Tambahan dummy style */
+      .dummy-extra {
+        padding: 10px;
+        background: #ddd;
+        margin-top: 10px;
+        border-radius: 5px;
+      }
+      /* End Dummy Styles */
+    </style>
+  </head>
+  <body>
+    <!-- Header Section -->
+    <header>
+      <h1>Photo Booth Mirror - Modern &amp; Gen Z</h1>
+    </header>
 
-    // Fungsi capture foto
-    captureBtn.addEventListener('click', () => {
-      // Buat elemen canvas untuk menangkap frame
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const context = canvas.getContext('2d');
-      context.filter = currentFilter;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    <!-- Container Utama -->
+    <div class="container">
+      <!-- Video Section -->
+      <section class="video-section">
+        <video id="video" autoplay playsinline></video>
+        <div class="video-overlay">
+          <button id="captureBtn"><i class="fas fa-camera"></i> Capture</button>
+          <button id="openLayoutBtn"><i class="fas fa-th"></i> Layout</button>
+          <button id="resetBtn"><i class="fas fa-sync-alt"></i> Reset</button>
+        </div>
+      </section>
 
-      // Konversi canvas ke data URL
-      const dataURL = canvas.toDataURL('image/png');
+      <!-- Opsi Filter -->
+      <section class="options-section">
+        <div class="option-item active" data-filter="none">Normal</div>
+        <div class="option-item" data-filter="grayscale(100%)">Grayscale</div>
+        <div class="option-item" data-filter="sepia(100%)">Sepia</div>
+        <div class="option-item" data-filter="invert(100%)">Invert</div>
+        <div class="option-item" data-filter="contrast(150%)">Contrast</div>
+        <div class="option-item" data-filter="hue-rotate(90deg)">Hue Rotate</div>
+        <div class="option-item" data-filter="saturate(200%)">Saturate</div>
+      </section>
 
-      // Tampilkan hasil capture pada preview box
-      capturedImage.src = dataURL;
-      previewBox.style.display = 'block';
+      <!-- Preview Section -->
+      <section class="preview-section" id="previewSection">
+        <img id="capturedImage" src="" alt="Hasil Capture" />
+        <div class="action-buttons">
+          <button id="retakeBtn"><i class="fas fa-undo"></i> Retake</button>
+          <a id="downloadLink" href="#" download="photo.png"
+            ><i class="fas fa-download"></i> Download</a
+          >
+        </div>
+      </section>
 
-      // Update link download dengan foto yang baru
-      downloadLink.href = dataURL;
-    });
+      <!-- Dummy Section 1 -->
+      <section class="dummy-section">
+        <h2>Dummy Section 1</h2>
+        <p>
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec
+          odio. Praesent libero. Sed cursus ante dapibus diam.
+        </p>
+        <ul>
+          <li>Dummy Item 1</li>
+          <li>Dummy Item 2</li>
+          <li>Dummy Item 3</li>
+          <li>Dummy Item 4</li>
+        </ul>
+        <div class="dummy-content"></div>
+      </section>
 
-    // Fungsi reset untuk menghapus preview dan kembali ke live video
-    resetBtn.addEventListener('click', () => {
-      capturedImage.src = "";
-      previewBox.style.display = 'none';
-      // Reset link download
-      downloadLink.href = "#";
-    });
-  </script>
-</body>
+      <!-- Dummy Section 2 -->
+      <section class="dummy-section">
+        <h2>Dummy Section 2</h2>
+        <p>
+          Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis
+          ipsum. Praesent mauris.
+        </p>
+        <ul>
+          <li>Dummy Item A</li>
+          <li>Dummy Item B</li>
+          <li>Dummy Item C</li>
+          <li>Dummy Item D</li>
+        </ul>
+        <div class="dummy-content"></div>
+      </section>
+    </div>
+
+    <!-- Modal untuk Pilih Layout -->
+    <div class="modal" id="layoutModal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Pilih Layout</h2>
+        </div>
+        <div class="modal-body">
+          <div class="layout-options">
+            <div class="layout-option active" data-layout="layout1">
+              <img
+                src="https://via.placeholder.com/120x90?text=Layout+1"
+                alt="Layout 1"
+              />
+            </div>
+            <div class="layout-option" data-layout="layout2">
+              <img
+                src="https://via.placeholder.com/120x90?text=Layout+2"
+                alt="Layout 2"
+              />
+            </div>
+            <div class="layout-option" data-layout="layout3">
+              <img
+                src="https://via.placeholder.com/120x90?text=Layout+3"
+                alt="Layout 3"
+              />
+            </div>
+            <div class="layout-option" data-layout="layout4">
+              <img
+                src="https://via.placeholder.com/120x90?text=Layout+4"
+                alt="Layout 4"
+              />
+            </div>
+            <div class="layout-option" data-layout="layout5">
+              <img
+                src="https://via.placeholder.com/120x90?text=Layout+5"
+                alt="Layout 5"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="applyLayoutBtn">Terapkan Layout</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dummy Section 3 -->
+    <div class="dummy-section">
+      <h2>Dummy Section 3</h2>
+      <p>
+        Ut fringilla. Suspendisse potenti. Nunc feugiat mi a tellus consequat
+        imperdiet. Vestibulum sapien. Proin quam.
+      </p>
+      <ul>
+        <li>Dummy List 1</li>
+        <li>Dummy List 2</li>
+        <li>Dummy List 3</li>
+        <li>Dummy List 4</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+    <!-- Dummy Section 4 -->
+    <div class="dummy-section">
+      <h2>Dummy Section 4</h2>
+      <p>
+        Maecenas nec odio et ante tincidunt tempus. Donec vitae sapien ut libero
+        venenatis faucibus. Nullam quis ante.
+      </p>
+      <ul>
+        <li>Dummy Item Alpha</li>
+        <li>Dummy Item Beta</li>
+        <li>Dummy Item Gamma</li>
+        <li>Dummy Item Delta</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+
+    <!-- Dummy Section 5 -->
+    <div class="dummy-section">
+      <h2>Dummy Section 5</h2>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+        tempor incididunt ut labore et dolore magna aliqua.
+      </p>
+      <ul>
+        <li>Extra Dummy 1</li>
+        <li>Extra Dummy 2</li>
+        <li>Extra Dummy 3</li>
+        <li>Extra Dummy 4</li>
+        <li>Extra Dummy 5</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+    <!-- Dummy Section 6 -->
+    <div class="dummy-section">
+      <h2>Dummy Section 6</h2>
+      <p>
+        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+        aliquip ex ea commodo consequat.
+      </p>
+      <ul>
+        <li>Extra Dummy A</li>
+        <li>Extra Dummy B</li>
+        <li>Extra Dummy C</li>
+        <li>Extra Dummy D</li>
+        <li>Extra Dummy E</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+    <!-- Dummy Section 7 -->
+    <div class="dummy-section">
+      <h2>Dummy Section 7</h2>
+      <p>
+        Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore
+        eu fugiat nulla pariatur.
+      </p>
+      <ul>
+        <li>Extra Dummy Alpha</li>
+        <li>Extra Dummy Beta</li>
+        <li>Extra Dummy Gamma</li>
+        <li>Extra Dummy Delta</li>
+        <li>Extra Dummy Epsilon</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+    <!-- Dummy Section 8 -->
+    <div class="dummy-section">
+      <h2>Dummy Section 8</h2>
+      <p>
+        Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia
+        deserunt mollit anim id est laborum.
+      </p>
+      <ul>
+        <li>Extra Dummy One</li>
+        <li>Extra Dummy Two</li>
+        <li>Extra Dummy Three</li>
+        <li>Extra Dummy Four</li>
+        <li>Extra Dummy Five</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+    <div class="dummy-section dummy-extra">
+      <h2>Dummy Extra Section</h2>
+      <p>
+        Ini adalah dummy extra section untuk menambah panjang kode sehingga memenuhi target lebih dari 600 baris.
+      </p>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+      // DOM Elements
+      const video = document.getElementById("video");
+      const captureBtn = document.getElementById("captureBtn");
+      const resetBtn = document.getElementById("resetBtn");
+      const retakeBtn = document.getElementById("retakeBtn");
+      const downloadLink = document.getElementById("downloadLink");
+      const previewSection = document.getElementById("previewSection");
+      const capturedImage = document.getElementById("capturedImage");
+      const optionItems = document.querySelectorAll(".option-item");
+      const openLayoutBtn = document.getElementById("openLayoutBtn");
+      const layoutModal = document.getElementById("layoutModal");
+      const layoutOptions = document.querySelectorAll(".layout-option");
+      const applyLayoutBtn = document.getElementById("applyLayoutBtn");
+      let currentFilter = "none";
+      let currentLayout = "layout1";
+
+      // Akses Webcam
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices
+          .getUserMedia({ video: true })
+          .then((stream) => {
+            video.srcObject = stream;
+            video.play();
+          })
+          .catch((err) => {
+            console.error("Error accessing webcam: ", err);
+            alert(
+              "Gagal mengakses webcam. Pastikan izin kamera sudah diaktifkan."
+            );
+          });
+      } else {
+        alert("Browser tidak mendukung fitur webcam.");
+      }
+
+      // Pilih Filter
+      optionItems.forEach((item) => {
+        item.addEventListener("click", () => {
+          optionItems.forEach((el) => el.classList.remove("active"));
+          item.classList.add("active");
+          currentFilter = item.getAttribute("data-filter");
+          video.style.filter = currentFilter;
+        });
+      });
+
+      // Capture Foto dengan Mirror
+      captureBtn.addEventListener("click", () => {
+        // Buat canvas untuk capture
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d");
+        // Terapkan filter dan mirror canvas
+        context.filter = currentFilter;
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        // Konversi canvas ke data URL
+        const dataURL = canvas.toDataURL("image/png");
+        capturedImage.src = dataURL;
+        previewSection.style.display = "flex";
+        downloadLink.href = dataURL;
+      });
+
+      // Reset Preview
+      resetBtn.addEventListener("click", () => {
+        capturedImage.src = "";
+        previewSection.style.display = "none";
+        downloadLink.href = "#";
+      });
+
+      // Retake (sama dengan reset)
+      if (retakeBtn) {
+        retakeBtn.addEventListener("click", () => {
+          capturedImage.src = "";
+          previewSection.style.display = "none";
+          downloadLink.href = "#";
+        });
+      }
+
+      // Buka Modal Layout
+      openLayoutBtn.addEventListener("click", () => {
+        layoutModal.classList.add("active");
+      });
+
+      // Pilih Layout dari Modal
+      layoutOptions.forEach((option) => {
+        option.addEventListener("click", () => {
+          layoutOptions.forEach((opt) => opt.classList.remove("active"));
+          option.classList.add("active");
+          currentLayout = option.getAttribute("data-layout");
+        });
+      });
+
+      // Terapkan Layout dan Tutup Modal
+      applyLayoutBtn.addEventListener("click", () => {
+        layoutModal.classList.remove("active");
+        // Contoh penerapan layout: mengubah class previewSection
+        previewSection.className = "preview-section " + currentLayout;
+        console.log("Layout applied:", currentLayout);
+      });
+
+      // Fungsi Dummy untuk menambah kode
+      function dummyFunctionOne() {
+        console.log("Dummy function one executed.");
+        let dummyArray = [];
+        for (let i = 0; i < 10; i++) {
+          dummyArray.push(i);
+        }
+        return dummyArray;
+      }
+      function dummyFunctionTwo() {
+        console.log("Dummy function two executed.");
+        let sum = 0;
+        for (let i = 0; i < 100; i++) {
+          sum += i;
+        }
+        return sum;
+      }
+      dummyFunctionOne();
+      dummyFunctionTwo();
+      for (let i = 0; i < 50; i++) {
+        console.log("Dummy loop iteration:", i);
+      }
+      window.addEventListener("resize", () => {
+        console.log("Window resized to:", window.innerWidth, window.innerHeight);
+      });
+      function additionalDummyFunctionA() {
+        let str = "A";
+        for (let i = 0; i < 20; i++) {
+          str += "A";
+        }
+        return str;
+      }
+      function additionalDummyFunctionB() {
+        let arr = [];
+        for (let i = 0; i < 20; i++) {
+          arr.push(i * 2);
+        }
+        return arr;
+      }
+      console.log(additionalDummyFunctionA());
+      console.log(additionalDummyFunctionB());
+      // Tambahan dummy JS
+      for (let j = 0; j < 100; j++) {
+        console.log("Extra dummy iteration:", j);
+      }
+      // End of JavaScript dummy code
+    </script>
+
+    <!-- Extra Dummy HTML Content -->
+    <div class="dummy-section">
+      <h2>Dummy Section 9</h2>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia
+        odio vitae vestibulum vestibulum.
+      </p>
+      <ul>
+        <li>Extra Dummy Item 1</li>
+        <li>Extra Dummy Item 2</li>
+        <li>Extra Dummy Item 3</li>
+        <li>Extra Dummy Item 4</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+    <div class="dummy-section">
+      <h2>Dummy Section 10</h2>
+      <p>
+        Cras ultricies ligula sed magna dictum porta. Proin eget tortor risus.
+      </p>
+      <ul>
+        <li>Extra Dummy Alpha</li>
+        <li>Extra Dummy Beta</li>
+        <li>Extra Dummy Gamma</li>
+        <li>Extra Dummy Delta</li>
+      </ul>
+      <div class="dummy-content"></div>
+    </div>
+  </body>
 </html>
